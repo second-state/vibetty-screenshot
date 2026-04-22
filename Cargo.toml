@@ -1,0 +1,13 @@
+[package]
+name = "vibetty-screenshot"
+version = "0.1.0"
+edition = "2024"
+description = "Render vt100 terminal screens to PNG images"
+
+[dependencies]
+ab_glyph = "0.2"
+image = "0.25"
+imageproc = "0.26"
+tiny-skia = "0.12"
+thiserror = "2"
+vt100 = "0.16"
