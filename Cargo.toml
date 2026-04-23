@@ -4,10 +4,17 @@ version = "0.1.0"
 edition = "2024"
 description = "Render vt100 terminal screens to PNG images"
 
+[features]
+default = ["freetype"]
+freetype = ["dep:freetype-rs"]
+ab_glyph = ["dep:ab_glyph", "dep:imageproc"]
+
 [dependencies]
-ab_glyph = "0.2"
 image = "0.25"
-imageproc = "0.26"
 tiny-skia = "0.12"
 thiserror = "2"
 vt100 = "0.16"
+
+freetype-rs = { version = "0.38", features = ["bundled"], optional = true }
+ab_glyph = { version = "0.2", optional = true }
+imageproc = { version = "0.26", optional = true }

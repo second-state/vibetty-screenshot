@@ -7,12 +7,16 @@ fn main() {
     let mut parser = vt100::Parser::new(24, 80, 0);
 
     // Feed some terminal output with ANSI colors
-    parser.write(b"\x1b[1;32m  vibetty-screenshot\x1b[0m\r\n\r\n");
-    parser.write(b"  Hello from the terminal!\r\n\r\n");
-    parser.write(b"  \x1b[33mWarning:\x1b[0m this is an example\r\n");
-    parser.write(b"  \x1b[31mError:\x1b[0m   something went wrong\r\n");
-    parser.write(b"  \x1b[34mInfo:\x1b[0m    everything is fine\r\n\r\n");
-    parser.write(b"  Rendering \x1b[1mbold\x1b[0m and \x1b[2mdim\x1b[0m text.\r\n");
+    let _ = parser.write(b"\x1b[1;32m  vibetty-screenshot\x1b[0m\r\n\r\n");
+    let _ = parser.write(b"  Hello from the terminal!\r\n\r\n");
+    let _ = parser.write(b"  \x1b[33mWarning:\x1b[0m this is an example\r\n");
+    let _ = parser.write(b"  \x1b[31mError:\x1b[0m   something went wrong\r\n");
+    let _ = parser.write(b"  \x1b[34mInfo:\x1b[0m    everything is fine\r\n\r\n");
+    let _ = parser.write(b"  Rendering \x1b[1mbold\x1b[0m and \x1b[2mdim\x1b[0m text.\r\n\r\n");
+    let _ = parser.write("  \x1b[36m中文渲染测试\x1b[0m\r\n".as_bytes());
+    let _ = parser.write("  你好世界！Hello World!\r\n".as_bytes());
+    let _ = parser.write("  \x1b[33m警告：\x1b[0m这是一条中文提示信息\r\n".as_bytes());
+    let _ = parser.write("  \x1b[32m成功：\x1b[0m操作已完成，终端截图生成。\r\n".as_bytes());
 
     let screen = parser.screen().clone();
 

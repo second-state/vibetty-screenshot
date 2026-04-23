@@ -1,9 +1,16 @@
 //! Canvas for rendering terminal content to images
 
-use ab_glyph::{Font, PxScale};
 use image::{ImageBuffer, Rgba, RgbaImage};
-use imageproc::drawing::draw_text_mut;
 use tiny_skia::{Color, Paint, Pixmap, Rect, Transform};
+
+#[cfg(feature = "freetype")]
+use crate::font::render_text;
+
+#[cfg(feature = "ab_glyph")]
+use ab_glyph::{Font, PxScale};
+
+#[cfg(feature = "ab_glyph")]
+use imageproc::drawing::draw_text_mut;
 
 /// Canvas for drawing shapes and text
 pub struct Canvas {
@@ -71,33 +78,8 @@ impl Canvas {
         self.fill_rect(0, height as i32 - 2, self.width(), 2, [60, 60, 65, 255]);
     }
 
-    /// Draw text at the specified position (simple placeholder)
-    #[allow(dead_code)]
-    pub fn draw_text(
-        &mut self,
-        text: &str,
-        x: i32,
-        y: i32,
-        color: [u8; 4],
-        _font: Option<&()>,
-        _font_size: f32,
-    ) {
-        self.draw_text_simple(text, x, y, color);
-    }
-
-    /// Draw text at the specified position (simple version without font)
-    #[allow(dead_code)]
-    pub fn draw_text_simple(&mut self, text: &str, x: i32, y: i32, color: [u8; 4]) {
-        for (i, ch) in text.chars().enumerate() {
-            let px_x = x + i as i32 * 8;
-            let px_y = y;
-            if !ch.is_whitespace() {
-                self.fill_rect(px_x, px_y, 6, 10, color);
-            }
-        }
-    }
-
     /// Draw text using ab_glyph font
+    #[cfg(feature = "ab_glyph")]
     pub fn draw_text_with_font<F: Font>(
         &mut self,
         text: &str,
@@ -109,6 +91,65 @@ impl Canvas {
     ) {
         let rgba = Rgba(color);
         draw_text_mut(&mut self.text_layer, rgba, x, y, scale, font, text);
+    }
+
+    /// Draw text using FreeType for high-quality rendering
+    #[cfg(feature = "freetype")]
+    pub fn draw_text_freetype(
+        &mut self,
+        text: &str,
+        x: i32,
+        y: i32,
+        color: [u8; 4],
+        font_size: f32,
+    ) {
+        let glyphs = render_text(text, font_size);
+        let canvas_w = self.text_layer.width() as i32;
+        let canvas_h = self.text_layer.height() as i32;
+
+        for (gx, gy, bw, bh, rgba_data) in glyphs {
+            let dest_x = x + gx;
+            let dest_y = y + gy;
+
+            for row in 0..bh {
+                for col in 0..bw {
+                    let px = dest_x + col;
+                    let py = dest_y + row;
+
+                    if px < 0 || py < 0 || px >= canvas_w || py >= canvas_h {
+                        continue;
+                    }
+
+                    let src_idx = ((row * bw + col) * 4) as usize;
+                    if src_idx + 3 >= rgba_data.len() {
+                        continue;
+                    }
+
+                    let alpha = rgba_data[src_idx + 3] as u32;
+                    if alpha == 0 {
+                        continue;
+                    }
+
+                    let pixel = self.text_layer.get_pixel_mut(px as u32, py as u32);
+
+                    if alpha == 255 {
+                        pixel[0] = color[0];
+                        pixel[1] = color[1];
+                        pixel[2] = color[2];
+                        pixel[3] = 255;
+                    } else {
+                        let inv_a = 255 - alpha;
+                        pixel[0] =
+                            ((color[0] as u32 * alpha + pixel[0] as u32 * inv_a + 128) >> 8) as u8;
+                        pixel[1] =
+                            ((color[1] as u32 * alpha + pixel[1] as u32 * inv_a + 128) >> 8) as u8;
+                        pixel[2] =
+                            ((color[2] as u32 * alpha + pixel[2] as u32 * inv_a + 128) >> 8) as u8;
+                        pixel[3] = 255;
+                    }
+                }
+            }
+        }
     }
 
     /// Get the canvas width
@@ -124,33 +165,29 @@ impl Canvas {
 
     /// Convert the canvas to a final image
     pub fn into_image(self) -> Result<RgbaImage, String> {
-        let mut final_image = RgbaImage::from_raw(
+        let mut result = RgbaImage::from_raw(
             self.background.width(),
             self.background.height(),
             self.background.data().to_vec(),
         )
         .ok_or_else(|| "Failed to create image from raw data".to_string())?;
 
-        // Blend text layer on top (fast integer alpha blending)
-        for (dst, src) in final_image.pixels_mut().zip(self.text_layer.pixels()) {
-            let a = src[3] as u32;
-            if a == 0 {
-                continue;
-            }
-            if a == 255 {
-                dst[0] = src[0];
-                dst[1] = src[1];
-                dst[2] = src[2];
-                dst[3] = 255;
-            } else {
-                let inv_a = 255 - a;
-                dst[0] = ((src[0] as u32 * a + dst[0] as u32 * inv_a + 128) >> 8) as u8;
-                dst[1] = ((src[1] as u32 * a + dst[1] as u32 * inv_a + 128) >> 8) as u8;
-                dst[2] = ((src[2] as u32 * a + dst[2] as u32 * inv_a + 128) >> 8) as u8;
-                dst[3] = 255;
+        // Composite text layer onto background
+        for (x, y, bg_pixel) in result.enumerate_pixels_mut() {
+            let text_pixel = self.text_layer.get_pixel(x, y);
+            let ta = text_pixel[3] as u32;
+            if ta > 0 {
+                let inv_ta = 255 - ta;
+                bg_pixel[0] =
+                    ((text_pixel[0] as u32 * ta + bg_pixel[0] as u32 * inv_ta + 128) >> 8) as u8;
+                bg_pixel[1] =
+                    ((text_pixel[1] as u32 * ta + bg_pixel[1] as u32 * inv_ta + 128) >> 8) as u8;
+                bg_pixel[2] =
+                    ((text_pixel[2] as u32 * ta + bg_pixel[2] as u32 * inv_ta + 128) >> 8) as u8;
+                bg_pixel[3] = 255;
             }
         }
 
-        Ok(final_image)
+        Ok(result)
     }
 }
