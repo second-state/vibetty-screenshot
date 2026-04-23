@@ -2,6 +2,7 @@
 
 use freetype::face::LoadFlag;
 use freetype::Library;
+use std::cell::RefCell;
 use std::sync::LazyLock;
 
 /// Global FreeType library instance
@@ -10,6 +11,26 @@ static LIBRARY: LazyLock<Library> =
 
 /// Embedded font data
 static FONT_DATA: &[u8] = include_bytes!("../assets/SarasaMonoSC-Light.ttf");
+
+thread_local! {
+    static CACHED_FACE: RefCell<Option<freetype::Face<&'static [u8]>>> = const { RefCell::new(None) };
+}
+
+/// Get or create a cached FreeType face (one per thread)
+fn get_face() -> freetype::Face<&'static [u8]> {
+    CACHED_FACE.with(|cell| {
+        let mut borrow = cell.borrow_mut();
+        if borrow.is_none() {
+            *borrow = Some(
+                LIBRARY
+                    .new_memory_face2(FONT_DATA, 0)
+                    .expect("Failed to load font"),
+            );
+        }
+        // Clone uses FT_Reference_Face internally — shares the underlying face
+        borrow.as_ref().unwrap().clone()
+    })
+}
 
 /// Font data container with FreeType face
 pub struct FontData {
@@ -34,9 +55,7 @@ pub fn render_text(
     text: &str,
     font_size: f32,
 ) -> Vec<(i32, i32, i32, i32, Vec<u8>)> {
-    let face = LIBRARY
-        .new_memory_face(FONT_DATA.to_vec(), 0)
-        .expect("Failed to load font");
+    let face = get_face();
 
     let pixel_size = font_size as u32;
     face.set_pixel_sizes(pixel_size, pixel_size)
@@ -108,9 +127,7 @@ pub fn render_text(
 
 /// Get character metrics using FreeType
 pub fn get_char_metrics(font_size: f32) -> (u32, u32) {
-    let face = LIBRARY
-        .new_memory_face(FONT_DATA.to_vec(), 0)
-        .expect("Failed to load font");
+    let face = get_face();
 
     let pixel_size = font_size as u32;
     face.set_pixel_sizes(pixel_size, pixel_size)
