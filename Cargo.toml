@@ -5,9 +5,10 @@ edition = "2024"
 description = "Render vt100 terminal screens to PNG images"
 
 [features]
-default = ["freetype"]
+default = ["ab_glyph"]
 freetype = ["dep:freetype-rs"]
 ab_glyph = ["dep:ab_glyph", "dep:imageproc"]
+swash = ["dep:swash"]
 
 [dependencies]
 image = "0.25"
@@ -18,3 +19,4 @@ vt100 = "0.16"
 freetype-rs = { version = "0.38", features = ["bundled"], optional = true }
 ab_glyph = { version = "0.2", optional = true }
 imageproc = { version = "0.26", optional = true }
+swash = { version = "0.2.7", optional = true }

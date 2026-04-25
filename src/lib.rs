@@ -4,8 +4,9 @@
 //!
 //! # Feature flags
 //!
-//! - `freetype` (default): Uses FreeType for high-quality font rendering with hinting
-//! - `ab_glyph`: Uses ab_glyph/imageproc for pure Rust font rendering
+//! - `ab_glyph` (default): Uses ab_glyph/imageproc for pure Rust font rendering
+//! - `freetype`: Uses FreeType for high-quality font rendering with hinting
+//! - `swash`: Uses swash for pure Rust font rendering with built-in cache
 
 mod canvas;
 mod font;
@@ -15,10 +16,13 @@ mod utils;
 pub use canvas::Canvas;
 pub use font::{FontData, get_char_metrics, load_font_with_size};
 
-#[cfg(feature = "freetype")]
+#[cfg(all(feature = "freetype", not(feature = "swash")))]
 pub use font::render_text;
 
-#[cfg(feature = "ab_glyph")]
+#[cfg(feature = "swash")]
+pub use font::render_text;
+
+#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
 pub use ab_glyph::{FontArc, PxScale};
 
 pub use theme::Theme;
@@ -81,16 +85,22 @@ fn draw_text(
     y: i32,
     color: [u8; 4],
     #[allow(unused_variables)] font_size: f32,
-    #[cfg(feature = "ab_glyph")] font: &ab_glyph::FontArc,
-    #[cfg(feature = "ab_glyph")] scale: ab_glyph::PxScale,
+    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    font: &ab_glyph::FontArc,
+    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    scale: ab_glyph::PxScale,
 ) {
-    #[cfg(feature = "freetype")]
+    #[cfg(all(feature = "freetype", not(feature = "swash")))]
     {
         canvas.draw_text_freetype(text, x, y, color, font_size);
     }
-    #[cfg(feature = "ab_glyph")]
+    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
     {
         canvas.draw_text_with_font(text, x, y, color, font, scale);
+    }
+    #[cfg(feature = "swash")]
+    {
+        canvas.draw_text_swash(text, x, y, color, font_size);
     }
 }
 
@@ -99,7 +109,11 @@ pub fn capture_screen(
     screen: &vt100::Screen,
     config: &ScreenshotConfig,
 ) -> Result<image::RgbaImage, ScreenshotError> {
-    #[cfg(feature = "ab_glyph")]
+    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    let font_data = load_font_with_size(config.font_size)
+        .unwrap_or_else(|_| FontData::new(config.font_size));
+
+    #[cfg(feature = "swash")]
     let font_data = load_font_with_size(config.font_size)
         .unwrap_or_else(|_| FontData::new(config.font_size));
 
@@ -145,10 +159,10 @@ pub fn capture_screen(
         let title_x = (padding + 8) as i32;
         let title_y = 10;
 
-        #[cfg(feature = "freetype")]
+        #[cfg(all(feature = "freetype", not(feature = "swash")))]
         draw_text(&mut canvas, title, title_x, title_y, [220, 220, 220, 255], config.font_size);
 
-        #[cfg(feature = "ab_glyph")]
+        #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
         draw_text(
             &mut canvas,
             title,
@@ -159,6 +173,9 @@ pub fn capture_screen(
             &font_data.font,
             font_data.scale,
         );
+
+        #[cfg(feature = "swash")]
+        draw_text(&mut canvas, title, title_x, title_y, [220, 220, 220, 255], config.font_size);
     }
 
     // Draw terminal content
@@ -183,7 +200,7 @@ pub fn capture_screen(
                     let fg = cell.fgcolor();
                     let fg_color = theme.get_foreground(fg, cell.bold(), cell.dim());
 
-                    #[cfg(feature = "freetype")]
+                    #[cfg(all(feature = "freetype", not(feature = "swash")))]
                     draw_text(
                         &mut canvas,
                         cell.contents(),
@@ -193,7 +210,7 @@ pub fn capture_screen(
                         config.font_size,
                     );
 
-                    #[cfg(feature = "ab_glyph")]
+                    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
                     draw_text(
                         &mut canvas,
                         cell.contents(),
@@ -203,6 +220,16 @@ pub fn capture_screen(
                         config.font_size,
                         &font_data.font,
                         font_data.scale,
+                    );
+
+                    #[cfg(feature = "swash")]
+                    draw_text(
+                        &mut canvas,
+                        cell.contents(),
+                        x as i32,
+                        y as i32,
+                        fg_color,
+                        config.font_size,
                     );
                 }
             }

@@ -3,13 +3,16 @@
 use image::{ImageBuffer, Rgba, RgbaImage};
 use tiny_skia::{Color, Paint, Pixmap, Rect, Transform};
 
-#[cfg(feature = "freetype")]
+#[cfg(all(feature = "freetype", not(feature = "swash")))]
 use crate::font::render_text;
 
-#[cfg(feature = "ab_glyph")]
+#[cfg(feature = "swash")]
+use crate::font::render_text as render_text_swash;
+
+#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
 use ab_glyph::{Font, PxScale};
 
-#[cfg(feature = "ab_glyph")]
+#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
 use imageproc::drawing::draw_text_mut;
 
 /// Canvas for drawing shapes and text
@@ -79,7 +82,7 @@ impl Canvas {
     }
 
     /// Draw text using ab_glyph font
-    #[cfg(feature = "ab_glyph")]
+    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
     pub fn draw_text_with_font<F: Font>(
         &mut self,
         text: &str,
@@ -94,7 +97,7 @@ impl Canvas {
     }
 
     /// Draw text using FreeType for high-quality rendering
-    #[cfg(feature = "freetype")]
+    #[cfg(all(feature = "freetype", not(feature = "swash")))]
     pub fn draw_text_freetype(
         &mut self,
         text: &str,
@@ -126,6 +129,68 @@ impl Canvas {
                     }
 
                     let alpha = rgba_data[src_idx + 3] as u32;
+                    if alpha == 0 {
+                        continue;
+                    }
+
+                    let pixel = self.text_layer.get_pixel_mut(px as u32, py as u32);
+
+                    if alpha == 255 {
+                        pixel[0] = color[0];
+                        pixel[1] = color[1];
+                        pixel[2] = color[2];
+                        pixel[3] = 255;
+                    } else {
+                        let inv_a = 255 - alpha;
+                        pixel[0] =
+                            ((color[0] as u32 * alpha + pixel[0] as u32 * inv_a + 128) >> 8) as u8;
+                        pixel[1] =
+                            ((color[1] as u32 * alpha + pixel[1] as u32 * inv_a + 128) >> 8) as u8;
+                        pixel[2] =
+                            ((color[2] as u32 * alpha + pixel[2] as u32 * inv_a + 128) >> 8) as u8;
+                        pixel[3] = 255;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Draw text using swash for rendering
+    #[cfg(feature = "swash")]
+    pub fn draw_text_swash(
+        &mut self,
+        text: &str,
+        x: i32,
+        y: i32,
+        color: [u8; 4],
+        font_size: f32,
+    ) {
+        let glyphs = render_text_swash(text, font_size);
+        let canvas_w = self.text_layer.width() as i32;
+        let canvas_h = self.text_layer.height() as i32;
+
+        for (gx, gy, bw, bh, mask) in glyphs {
+            let dest_x = x + gx;
+            let dest_y = y + gy;
+
+            for row in 0..bh {
+                let src_offset = (row * bw) as usize;
+                let py = dest_y + row;
+                if py < 0 || py >= canvas_h {
+                    continue;
+                }
+                for col in 0..bw {
+                    let px = dest_x + col;
+                    if px < 0 || px >= canvas_w {
+                        continue;
+                    }
+
+                    let src_idx = src_offset + col as usize;
+                    if src_idx >= mask.len() {
+                        continue;
+                    }
+
+                    let alpha = mask[src_idx] as u32;
                     if alpha == 0 {
                         continue;
                     }
