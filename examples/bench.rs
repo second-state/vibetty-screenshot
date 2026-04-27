@@ -1,7 +1,7 @@
 use std::io::Write;
-use std::time::Instant;
+use vibetty_screenshot::{capture_screen, ScreenshotConfig};
 
-fn build_screen() -> vt100::Screen {
+fn main() {
     let mut parser = vt100::Parser::new(24, 80, 0);
     let _ = parser.write(b"\x1b[1;32m  vibetty-screenshot\x1b[0m\r\n\r\n");
     let _ = parser.write(b"  Hello from the terminal!\r\n\r\n");
@@ -9,46 +9,43 @@ fn build_screen() -> vt100::Screen {
     let _ = parser.write(b"  \x1b[31mError:\x1b[0m   something went wrong\r\n");
     let _ = parser.write(b"  \x1b[34mInfo:\x1b[0m    everything is fine\r\n\r\n");
     let _ = parser.write(b"  Rendering \x1b[1mbold\x1b[0m and \x1b[2mdim\x1b[0m text.\r\n\r\n");
-    let _ = parser.write("  \x1b[36m中文渲染测试\x1b[0m\r\n".as_bytes());
-    let _ = parser.write("  你好世界！Hello World!\r\n".as_bytes());
-    let _ = parser.write("  \x1b[33m警告：\x1b[0m这是一条中文提示信息\r\n".as_bytes());
-    let _ = parser.write("  \x1b[32m成功：\x1b[0m操作已完成，终端截图生成。\r\n".as_bytes());
-    parser.screen().clone()
-}
+    let _ = parser.write("\x1b[36m中文渲染测试\x1b[0m\r\n".as_bytes());
+    let _ = parser.write("  Full: \x1b[44m████████\x1b[0m\r\n".as_bytes());
 
-fn main() {
-    let screen = build_screen();
+    let screen = parser.screen().clone();
+    let config = ScreenshotConfig::default();
 
-    // Warm up
-    for _ in 0..3 {
-        let config = vibetty_screenshot::ScreenshotConfig {
-            font_size: 16.0,
-            padding: 24,
-            background_color: [30, 30, 30, 255],
-            show_decorations: true,
-            title: Some("bench".to_string()),
-        };
-        let _ = vibetty_screenshot::capture_screen(&screen, &config);
-    }
+    // Warmup
+    let _ = capture_screen(&screen, &config);
 
-    // Benchmark
-    let iterations = 50;
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let config = vibetty_screenshot::ScreenshotConfig {
-            font_size: 16.0,
-            padding: 24,
-            background_color: [30, 30, 30, 255],
-            show_decorations: true,
-            title: Some("bench".to_string()),
-        };
-        let _ = vibetty_screenshot::capture_screen(&screen, &config);
+    let n = 100;
+    let start = std::time::Instant::now();
+    for _ in 0..n {
+        let img = capture_screen(&screen, &config);
+        std::hint::black_box(img);
     }
     let elapsed = start.elapsed();
-    let per_frame = elapsed / iterations;
+    let per_frame = elapsed.as_micros() / n as u128;
+    println!("capture_screen: {} iterations, {}us/frame ({}us total)", n, per_frame, elapsed.as_micros());
 
-    println!(
-        "{} iterations: {:.2?} total, {:.2?}/frame",
-        iterations, elapsed, per_frame
-    );
+    // Also time PNG save
+    let img = capture_screen(&screen, &config).unwrap();
+    let start = std::time::Instant::now();
+    for _ in 0..n {
+        let mut buf = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png).unwrap();
+        std::hint::black_box(buf);
+    }
+    let elapsed = start.elapsed();
+    let per_frame = elapsed.as_micros() / n as u128;
+    println!("PNG encode:     {} iterations, {}us/frame ({}us total)", n, per_frame, elapsed.as_micros());
+
+    // Full save to disk
+    let start = std::time::Instant::now();
+    for _ in 0..n {
+        img.save("/tmp/bench_out.png").unwrap();
+    }
+    let elapsed = start.elapsed();
+    let per_frame = elapsed.as_micros() / n as u128;
+    println!("PNG save disk:  {} iterations, {}us/frame ({}us total)", n, per_frame, elapsed.as_micros());
 }
