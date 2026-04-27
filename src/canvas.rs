@@ -141,14 +141,18 @@ impl Canvas {
                         pixel[2] = color[2];
                         pixel[3] = 255;
                     } else {
-                        let inv_a = 255 - alpha;
-                        pixel[0] =
-                            ((color[0] as u32 * alpha + pixel[0] as u32 * inv_a + 128) >> 8) as u8;
-                        pixel[1] =
-                            ((color[1] as u32 * alpha + pixel[1] as u32 * inv_a + 128) >> 8) as u8;
-                        pixel[2] =
-                            ((color[2] as u32 * alpha + pixel[2] as u32 * inv_a + 128) >> 8) as u8;
-                        pixel[3] = 255;
+                        // Source-over compositing with straight alpha
+                        let dst_a = pixel[3] as u32;
+                        let out_a = alpha + ((255 - alpha) * dst_a + 127) / 255;
+                        if out_a > 0 {
+                            let src_w = alpha * 255;
+                            let dst_w = dst_a * (255 - alpha);
+                            let total = src_w + dst_w;
+                            pixel[0] = ((color[0] as u32 * src_w + pixel[0] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[1] = ((color[1] as u32 * src_w + pixel[1] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[2] = ((color[2] as u32 * src_w + pixel[2] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[3] = out_a as u8;
+                        }
                     }
                 }
             }
@@ -203,14 +207,18 @@ impl Canvas {
                         pixel[2] = color[2];
                         pixel[3] = 255;
                     } else {
-                        let inv_a = 255 - alpha;
-                        pixel[0] =
-                            ((color[0] as u32 * alpha + pixel[0] as u32 * inv_a + 128) >> 8) as u8;
-                        pixel[1] =
-                            ((color[1] as u32 * alpha + pixel[1] as u32 * inv_a + 128) >> 8) as u8;
-                        pixel[2] =
-                            ((color[2] as u32 * alpha + pixel[2] as u32 * inv_a + 128) >> 8) as u8;
-                        pixel[3] = 255;
+                        // Source-over compositing with straight alpha
+                        let dst_a = pixel[3] as u32;
+                        let out_a = alpha + ((255 - alpha) * dst_a + 127) / 255;
+                        if out_a > 0 {
+                            let src_w = alpha * 255;
+                            let dst_w = dst_a * (255 - alpha);
+                            let total = src_w + dst_w;
+                            pixel[0] = ((color[0] as u32 * src_w + pixel[0] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[1] = ((color[1] as u32 * src_w + pixel[1] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[2] = ((color[2] as u32 * src_w + pixel[2] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[3] = out_a as u8;
+                        }
                     }
                 }
             }
