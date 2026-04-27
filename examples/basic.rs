@@ -18,6 +18,15 @@ fn main() {
     let _ = parser.write("  \x1b[33m警告：\x1b[0m这是一条中文提示信息\r\n".as_bytes());
     let _ = parser.write("  \x1b[32m成功：\x1b[0m操作已完成，终端截图生成。\r\n".as_bytes());
 
+    // Block characters — should tile seamlessly
+    let _ = parser.write(b"\r\n");
+    let _ = parser.write("  \x1b[42m                                                                          \x1b[0m\r\n".as_bytes());
+    let _ = parser.write(b"\r\n");
+    let _ = parser.write("  Full: \x1b[44m████████\x1b[0m  Upper: \x1b[43m▀▀▀▀▀▀▀▀\x1b[0m\r\n".as_bytes());
+    let _ = parser.write("  Lower: \x1b[41m▄▄▄▄▄▄▄▄\x1b[0m  Left: \x1b[45m▌▌▌▌▌▌▌▌\x1b[0m\r\n".as_bytes());
+    let _ = parser.write("  Shade: \x1b[46m░░▒▒▓▓██\x1b[0m\r\n".as_bytes());
+    let _ = parser.write("  Progress: \x1b[42m████████  \x1b[0m\x1b[43m▀▀▀▀\x1b[0m\r\n".as_bytes());
+
     let screen = parser.screen().clone();
 
     let config = ScreenshotConfig {

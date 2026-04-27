@@ -200,7 +200,15 @@ pub fn capture_screen(
                     let fg = cell.fgcolor();
                     let fg_color = theme.get_foreground(fg, cell.bold(), cell.dim());
 
-                    #[cfg(all(feature = "freetype", not(feature = "swash")))]
+                    let contents = cell.contents();
+                    let w = if cell.is_wide() {
+                        char_width * 2
+                    } else {
+                        char_width
+                    };
+
+                    {
+                        #[cfg(all(feature = "freetype", not(feature = "swash")))]
                     draw_text(
                         &mut canvas,
                         cell.contents(),
@@ -225,12 +233,13 @@ pub fn capture_screen(
                     #[cfg(feature = "swash")]
                     draw_text(
                         &mut canvas,
-                        cell.contents(),
+                        contents,
                         x as i32,
                         y as i32,
                         fg_color,
                         config.font_size,
                     );
+                    }
                 }
             }
         }

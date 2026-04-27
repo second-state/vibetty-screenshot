@@ -56,6 +56,12 @@ pub fn render_text(text: &str, font_size: f32) -> Vec<(i32, i32, i32, i32, Vec<u
     let charmap = font.charmap();
     let glyph_metrics = font.glyph_metrics(&[]).scale(font_size);
 
+    // Compute ascent and line height in pixels
+    let font_metrics = font.metrics(&[]);
+    let upem = font_metrics.units_per_em as f32;
+    let ascent_px = (font_metrics.ascent * font_size / upem) as i32;
+    let line_height = ((font_metrics.ascent + font_metrics.descent + font_metrics.leading) * font_size / upem) as i32;
+
     let mut glyphs = Vec::new();
     let mut pen_x: f32 = 0.0;
 
@@ -99,9 +105,22 @@ pub fn render_text(text: &str, font_size: f32) -> Vec<(i32, i32, i32, i32, Vec<u
                 };
 
                 let x_offset = pen_x as i32 + left;
-                let y_offset = -top;
+                let y_offset = ascent_px - top;
 
-                glyphs.push((x_offset, y_offset, w, h, mask));
+                // Clip glyph to cell boundaries [0, line_height)
+                let skip_top = (-y_offset).max(0) as usize;
+                let dest_y = y_offset.max(0);
+                let visible_h = (h as usize)
+                    .saturating_sub(skip_top)
+                    .min((line_height - dest_y) as usize);
+                if visible_h == 0 || skip_top as i32 >= h {
+                    pen_x += advance;
+                    continue;
+                }
+                let row_bytes = w as usize;
+                let clipped_mask = mask[(skip_top * row_bytes)..(skip_top * row_bytes + visible_h * row_bytes)].to_vec();
+
+                glyphs.push((x_offset, dest_y, w, visible_h as i32, clipped_mask));
             }
 
             pen_x += advance;
