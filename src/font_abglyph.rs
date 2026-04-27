@@ -1,6 +1,6 @@
 //! Font loading utilities using ab_glyph
 
-use ab_glyph::{Font, FontArc, PxScale, ScaleFont};
+use ab_glyph::{Font, FontArc, PxScale};
 use std::sync::LazyLock;
 
 /// Global cached font, parsed only once
@@ -36,10 +36,15 @@ pub fn load_font_with_size(size: f32) -> Result<FontData, String> {
 pub fn get_char_metrics(font_size: f32) -> (u32, u32) {
     let font = &*FONT;
     let scale = PxScale::from(font_size);
-    let scaled = font.as_scaled(scale);
+    let units_per_em = font.units_per_em().unwrap_or(2048.0);
 
-    let char_width = scaled.h_advance(font.glyph_id(' ')) as u32;
-    let char_height = scaled.height() as u32;
+    let space_id = font.glyph_id(' ');
+    let advance_unscaled = font.h_advance_unscaled(space_id);
+    let char_width = ((advance_unscaled / units_per_em) * scale.x).round() as u32;
+
+    let ascent = (font.ascent_unscaled() / units_per_em * scale.y).round() as u32;
+    let descent = (font.descent_unscaled() / units_per_em * scale.y).round() as u32;
+    let char_height = ascent + descent;
 
     (char_width.max(1), char_height.max(1))
 }
