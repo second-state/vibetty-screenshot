@@ -63,6 +63,9 @@ pub struct ScreenshotConfig {
 
     /// Window title
     pub title: Option<String>,
+
+    /// Color theme for terminal rendering
+    pub theme: Theme,
 }
 
 impl Default for ScreenshotConfig {
@@ -73,6 +76,7 @@ impl Default for ScreenshotConfig {
             background_color: [30, 30, 30, 255],
             show_decorations: true,
             title: None,
+            theme: Theme::default(),
         }
     }
 }
@@ -117,7 +121,7 @@ pub fn capture_screen(
     let font_data = load_font_with_size(config.font_size)
         .unwrap_or_else(|_| FontData::new(config.font_size));
 
-    let theme = Theme::default();
+    let theme = &config.theme;
     let (char_width, char_height) = get_char_metrics(config.font_size);
 
     let (rows, cols) = screen.size();
