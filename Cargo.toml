@@ -20,3 +20,7 @@ freetype-rs = { version = "0.38", features = ["bundled"], optional = true }
 ab_glyph = { version = "0.2", optional = true }
 imageproc = { version = "0.26", optional = true }
 swash = { version = "0.2.7", optional = true }
+
+[dev-dependencies]
+color_quant = "1.1"
+png = "0.17"
