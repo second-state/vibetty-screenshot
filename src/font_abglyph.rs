@@ -1,18 +1,33 @@
 //! Font loading utilities using ab_glyph
+//!
+//! Primary font: JetBrains Mono (Latin/ASCII, box-drawing, monospace).
+//! Fallback font: Sarasa Mono SC (CJK and any glyph the primary lacks).
 
 use ab_glyph::{Font, FontArc, PxScale};
 use std::sync::LazyLock;
 
-/// Global cached font, parsed only once
-static FONT: LazyLock<FontArc> = LazyLock::new(|| {
-    FontArc::try_from_slice(include_bytes!("../assets/SarasaMonoSC-Light.ttf"))
-        .expect("Embedded font is valid")
+/// Embedded primary font data — JetBrains Mono
+static FONT_DATA_PRIMARY: &[u8] = include_bytes!("../assets/JetBrainsMono-Regular.ttf");
+
+/// Embedded fallback font data — Sarasa Mono SC
+static FONT_DATA_FALLBACK: &[u8] = include_bytes!("../assets/SarasaMonoSC-Light.ttf");
+
+/// Global cached primary font, parsed only once
+static FONT_PRIMARY: LazyLock<FontArc> = LazyLock::new(|| {
+    FontArc::try_from_slice(FONT_DATA_PRIMARY).expect("Primary font is valid")
 });
 
-/// Font data container with ab_glyph FontArc
+/// Global cached fallback font, parsed only once
+static FONT_FALLBACK: LazyLock<FontArc> = LazyLock::new(|| {
+    FontArc::try_from_slice(FONT_DATA_FALLBACK).expect("Fallback font is valid")
+});
+
+/// Font data container with primary + fallback ab_glyph FontArcs
 pub struct FontData {
-    /// Regular font
+    /// Primary font (Latin/ASCII/box-drawing)
     pub font: FontArc,
+    /// Fallback font (CJK / missing glyphs)
+    pub fallback: FontArc,
     /// Font scale for rendering
     pub scale: PxScale,
 }
@@ -21,7 +36,8 @@ impl FontData {
     /// Create a new FontData with the given font size
     pub fn new(font_size: f32) -> Self {
         Self {
-            font: FONT.clone(),
+            font: FONT_PRIMARY.clone(),
+            fallback: FONT_FALLBACK.clone(),
             scale: PxScale::from(font_size),
         }
     }
@@ -32,9 +48,9 @@ pub fn load_font_with_size(size: f32) -> Result<FontData, String> {
     Ok(FontData::new(size))
 }
 
-/// Get character metrics using ab_glyph
+/// Get character metrics using the primary font (defines the 1-cell grid unit)
 pub fn get_char_metrics(font_size: f32) -> (u32, u32) {
-    let font = &*FONT;
+    let font = &*FONT_PRIMARY;
     let scale = PxScale::from(font_size);
     let units_per_em = font.units_per_em().unwrap_or(2048.0);
 

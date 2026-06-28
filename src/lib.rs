@@ -92,6 +92,8 @@ fn draw_text(
     #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
     font: &ab_glyph::FontArc,
     #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    fallback: &ab_glyph::FontArc,
+    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
     scale: ab_glyph::PxScale,
 ) {
     #[cfg(all(feature = "freetype", not(feature = "swash")))]
@@ -100,7 +102,7 @@ fn draw_text(
     }
     #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
     {
-        canvas.draw_text_with_font(text, x, y, color, font, scale);
+        canvas.draw_text_with_font(text, x, y, color, font, fallback, scale);
     }
     #[cfg(feature = "swash")]
     {
@@ -175,6 +177,7 @@ pub fn capture_screen(
             [220, 220, 220, 255],
             config.font_size,
             &font_data.font,
+            &font_data.fallback,
             font_data.scale,
         );
 
@@ -205,17 +208,12 @@ pub fn capture_screen(
                     let fg_color = theme.get_foreground(fg, cell.bold(), cell.dim());
 
                     let contents = cell.contents();
-                    let w = if cell.is_wide() {
-                        char_width * 2
-                    } else {
-                        char_width
-                    };
 
                     {
                         #[cfg(all(feature = "freetype", not(feature = "swash")))]
                     draw_text(
                         &mut canvas,
-                        cell.contents(),
+                        contents,
                         x as i32,
                         y as i32,
                         fg_color,
@@ -225,12 +223,13 @@ pub fn capture_screen(
                     #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
                     draw_text(
                         &mut canvas,
-                        cell.contents(),
+                        contents,
                         x as i32,
                         y as i32,
                         fg_color,
                         config.font_size,
                         &font_data.font,
+                        &font_data.fallback,
                         font_data.scale,
                     );
 

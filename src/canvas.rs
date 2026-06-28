@@ -10,7 +10,7 @@ use crate::font::render_text;
 use crate::font::render_text as render_text_swash;
 
 #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
-use ab_glyph::{Font, PxScale};
+use ab_glyph::{Font, FontArc, PxScale};
 
 #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
 use imageproc::drawing::draw_text_mut;
@@ -81,19 +81,35 @@ impl Canvas {
         self.fill_rect(0, height as i32 - 2, self.width(), 2, [60, 60, 65, 255]);
     }
 
-    /// Draw text using ab_glyph font
+    /// Draw text using ab_glyph fonts with per-character fallback
     #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
-    pub fn draw_text_with_font<F: Font>(
+    pub fn draw_text_with_font(
         &mut self,
         text: &str,
         x: i32,
         y: i32,
         color: [u8; 4],
-        font: &F,
+        font: &FontArc,
+        fallback: &FontArc,
         scale: PxScale,
     ) {
         let rgba = Rgba(color);
-        draw_text_mut(&mut self.text_layer, rgba, x, y, scale, font, text);
+        // Grid cell width from the primary font's space advance.
+        let units_per_em = font.units_per_em().unwrap_or(2048.0);
+        let char_width_px =
+            (font.h_advance_unscaled(font.glyph_id(' ')) / units_per_em * scale.x).round() as i32;
+
+        let mut pen_x = x;
+        for ch in text.chars() {
+            // Primary font when it has the glyph, else fallback (treated as wide).
+            let (f, is_wide) = if font.glyph_id(ch).0 != 0 {
+                (font, false)
+            } else {
+                (fallback, true)
+            };
+            draw_text_mut(&mut self.text_layer, rgba, pen_x, y, scale, f, &ch.to_string());
+            pen_x += if is_wide { char_width_px * 2 } else { char_width_px };
+        }
     }
 
     /// Draw text using FreeType for high-quality rendering

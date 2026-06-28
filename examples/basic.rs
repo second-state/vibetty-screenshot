@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use vibetty_screenshot::{save_screen_png, ScreenshotConfig};
+use vibetty_screenshot::{save_screen_png, ScreenshotConfig, Theme};
 
 fn main() {
     // Create a 24x80 terminal
@@ -35,6 +35,7 @@ fn main() {
         background_color: [30, 30, 30, 255],
         show_decorations: true,
         title: Some("vibetty-screenshot example".to_string()),
+        theme: Theme::default(),
     };
 
     save_screen_png(&screen, "output.png", &config).expect("Failed to save screenshot");
