@@ -38,6 +38,24 @@ let image = capture_screen(&screen, &config).unwrap();
 // image is an image::RgbaImage — encode as JPEG, PNG, resize, etc.
 ```
 
+### Custom background image
+
+Render the screen over a caller-supplied image instead of a solid color. The
+library does no I/O — decode the image yourself and pass a `&DynamicImage`:
+
+```rust
+use image::ImageReader;
+use vibetty_screenshot::{capture_screen_with_image, ScreenshotConfig};
+
+let bg = ImageReader::open("wallpaper.png")?
+    .with_guessed_format()?
+    .decode()?;
+
+// background_color in the config is ignored when an image is supplied
+let image = capture_screen_with_image(&screen, &ScreenshotConfig::default(), &bg)?;
+// The image is scaled to cover the canvas (aspect ratio preserved, edges cropped).
+```
+
 ## Fonts
 
 Two fonts are embedded and combined via per-character fallback:
@@ -74,12 +92,15 @@ vibetty-screenshot = { version = "0.2", default-features = false, features = ["s
 
 ```bash
 cargo run --example basic
+# custom background image (path optional; defaults to a synthetic gradient)
+cargo run --example bg_image -- path/to/image.png
 ```
 
 ## API
 
 ```rust
 pub fn capture_screen(screen: &vt100::Screen, config: &ScreenshotConfig) -> Result<RgbaImage, ScreenshotError>
+pub fn capture_screen_with_image(screen: &vt100::Screen, config: &ScreenshotConfig, image: &image::DynamicImage) -> Result<RgbaImage, ScreenshotError>
 pub fn save_screen_png(screen: &vt100::Screen, path: &str, config: &ScreenshotConfig) -> Result<(), ScreenshotError>
 ```
 
