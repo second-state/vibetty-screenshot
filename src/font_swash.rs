@@ -7,9 +7,9 @@
 
 use std::cell::RefCell;
 use std::sync::LazyLock;
+use swash::FontRef;
 use swash::scale::image::Content;
 use swash::scale::{Render, ScaleContext, Source};
-use swash::FontRef;
 
 /// Embedded primary font data — JetBrains Mono
 static FONT_DATA_PRIMARY: &[u8] = include_bytes!("../assets/JetBrainsMono-Regular.ttf");
@@ -165,8 +165,8 @@ pub fn render_text(text: &str, font_size: f32) -> Vec<(i32, i32, i32, i32, Vec<u
                     continue;
                 }
                 let row_bytes = w as usize;
-                let clipped_mask = mask[(skip_top * row_bytes)..(skip_top * row_bytes
-                    + visible_h * row_bytes)]
+                let clipped_mask = mask
+                    [(skip_top * row_bytes)..(skip_top * row_bytes + visible_h * row_bytes)]
                     .to_vec();
 
                 glyphs.push((x_offset, dest_y, w, visible_h as i32, clipped_mask));

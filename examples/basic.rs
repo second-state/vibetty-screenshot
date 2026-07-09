@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use vibetty_screenshot::{save_screen_png, ScreenshotConfig, Theme};
+use vibetty_screenshot::{ScreenshotConfig, Theme, save_screen_png};
 
 fn main() {
     // Create a 24x80 terminal
@@ -22,8 +22,10 @@ fn main() {
     let _ = parser.write(b"\r\n");
     let _ = parser.write("  \x1b[42m                                                                          \x1b[0m\r\n".as_bytes());
     let _ = parser.write(b"\r\n");
-    let _ = parser.write("  Full: \x1b[44m████████\x1b[0m  Upper: \x1b[43m▀▀▀▀▀▀▀▀\x1b[0m\r\n".as_bytes());
-    let _ = parser.write("  Lower: \x1b[41m▄▄▄▄▄▄▄▄\x1b[0m  Left: \x1b[45m▌▌▌▌▌▌▌▌\x1b[0m\r\n".as_bytes());
+    let _ = parser
+        .write("  Full: \x1b[44m████████\x1b[0m  Upper: \x1b[43m▀▀▀▀▀▀▀▀\x1b[0m\r\n".as_bytes());
+    let _ = parser
+        .write("  Lower: \x1b[41m▄▄▄▄▄▄▄▄\x1b[0m  Left: \x1b[45m▌▌▌▌▌▌▌▌\x1b[0m\r\n".as_bytes());
     let _ = parser.write("  Shade: \x1b[46m░░▒▒▓▓██\x1b[0m\r\n".as_bytes());
     let _ = parser.write("  Progress: \x1b[42m████████  \x1b[0m\x1b[43m▀▀▀▀\x1b[0m\r\n".as_bytes());
 

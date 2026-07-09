@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use image::codecs::jpeg::JpegEncoder;
-use vibetty_screenshot::{capture_screen, ScreenshotConfig};
+use vibetty_screenshot::{ScreenshotConfig, capture_screen};
 
 fn feed(p: &mut vt100::Parser, s: &str) {
     let _ = p.write(s.as_bytes());
@@ -25,8 +25,14 @@ fn screen_ansi() -> vt100::Screen {
     feed(&mut p, "  Hello from the terminal!\r\n\r\n");
     feed(&mut p, "  \x1b[33mWarning:\x1b[0m this is an example\r\n");
     feed(&mut p, "  \x1b[31mError:\x1b[0m   something went wrong\r\n");
-    feed(&mut p, "  \x1b[34mInfo:\x1b[0m    everything is fine\r\n\r\n");
-    feed(&mut p, "  Rendering \x1b[1mbold\x1b[0m and \x1b[2mdim\x1b[0m text.\r\n\r\n");
+    feed(
+        &mut p,
+        "  \x1b[34mInfo:\x1b[0m    everything is fine\r\n\r\n",
+    );
+    feed(
+        &mut p,
+        "  Rendering \x1b[1mbold\x1b[0m and \x1b[2mdim\x1b[0m text.\r\n\r\n",
+    );
     feed(&mut p, "  \x1b[36m中文渲染测试\x1b[0m\r\n");
     feed(&mut p, "  你好世界！Hello World!\r\n");
     p.screen().clone()
@@ -61,8 +67,13 @@ fn screen_cjk() -> vt100::Screen {
 /// Screen full of solid colored blocks (uniform regions).
 fn screen_blocks() -> vt100::Screen {
     let mut p = vt100::Parser::new(24, 80, 0);
-    for col in [41, 42, 43, 44, 45, 46, 47, 101, 102, 103, 104, 105, 106, 107, 30, 90] {
-        feed(&mut p, &format!("\x1b[{}m{}\x1b[0m\r\n", col, " ".repeat(78)));
+    for col in [
+        41, 42, 43, 44, 45, 46, 47, 101, 102, 103, 104, 105, 106, 107, 30, 90,
+    ] {
+        feed(
+            &mut p,
+            &format!("\x1b[{}m{}\x1b[0m\r\n", col, " ".repeat(78)),
+        );
     }
     p.screen().clone()
 }
@@ -114,7 +125,10 @@ fn main() {
     for (name, screen) in &cases {
         let img = capture_screen(screen, &config).unwrap();
         let png = encode_png(&img);
-        let jpegs: Vec<usize> = qualities.iter().map(|q| encode_jpeg(&img, *q).len()).collect();
+        let jpegs: Vec<usize> = qualities
+            .iter()
+            .map(|q| encode_jpeg(&img, *q).len())
+            .collect();
 
         let (w, h) = (img.width(), img.height());
         println!(

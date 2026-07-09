@@ -56,18 +56,25 @@ fn main() {
         wr.write_image_data(&indices).unwrap();
     }
 
-    let uniq = raw
-        .chunks_exact(3)
-        .fold(HashSet::new(), |mut s, p| {
-            s.insert([p[0], p[1], p[2]]);
-            s
-        });
+    let uniq = raw.chunks_exact(3).fold(HashSet::new(), |mut s, p| {
+        s.insert([p[0], p[1], p[2]]);
+        s
+    });
 
     println!("image: {path}  ({w}x{h}, {} unique colors)", uniq.len());
     println!("original RGBA PNG (vibetty today) :  82.5K  (Pillow-measured, for reference)");
-    println!("image-crate RGB PNG (default)     : {:>5.1}K", baseline.len() as f64 / 1024.0);
-    println!("png-crate RGB PNG  (best)         : {:>5.1}K", rgb_best.len() as f64 / 1024.0);
-    println!("png-crate palette  (best, NeuQuant): {:>4.1}K  <-- target", pal_best.len() as f64 / 1024.0);
+    println!(
+        "image-crate RGB PNG (default)     : {:>5.1}K",
+        baseline.len() as f64 / 1024.0
+    );
+    println!(
+        "png-crate RGB PNG  (best)         : {:>5.1}K",
+        rgb_best.len() as f64 / 1024.0
+    );
+    println!(
+        "png-crate palette  (best, NeuQuant): {:>4.1}K  <-- target",
+        pal_best.len() as f64 / 1024.0
+    );
 
     std::fs::write("/tmp/sc_rust_pal.png", &pal_best).unwrap();
     println!("\npalette PNG -> /tmp/sc_rust_pal.png (open to check it's visually lossless)");

@@ -1,5 +1,5 @@
 use std::io::Write;
-use vibetty_screenshot::{capture_screen, ScreenshotConfig};
+use vibetty_screenshot::{ScreenshotConfig, capture_screen};
 
 fn main() {
     let mut parser = vt100::Parser::new(24, 80, 0);
@@ -26,19 +26,30 @@ fn main() {
     }
     let elapsed = start.elapsed();
     let per_frame = elapsed.as_micros() / n as u128;
-    println!("capture_screen: {} iterations, {}us/frame ({}us total)", n, per_frame, elapsed.as_micros());
+    println!(
+        "capture_screen: {} iterations, {}us/frame ({}us total)",
+        n,
+        per_frame,
+        elapsed.as_micros()
+    );
 
     // Also time PNG save
     let img = capture_screen(&screen, &config).unwrap();
     let start = std::time::Instant::now();
     for _ in 0..n {
         let mut buf = Vec::new();
-        img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png).unwrap();
+        img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+            .unwrap();
         std::hint::black_box(buf);
     }
     let elapsed = start.elapsed();
     let per_frame = elapsed.as_micros() / n as u128;
-    println!("PNG encode:     {} iterations, {}us/frame ({}us total)", n, per_frame, elapsed.as_micros());
+    println!(
+        "PNG encode:     {} iterations, {}us/frame ({}us total)",
+        n,
+        per_frame,
+        elapsed.as_micros()
+    );
 
     // Full save to disk
     let start = std::time::Instant::now();
@@ -47,5 +58,10 @@ fn main() {
     }
     let elapsed = start.elapsed();
     let per_frame = elapsed.as_micros() / n as u128;
-    println!("PNG save disk:  {} iterations, {}us/frame ({}us total)", n, per_frame, elapsed.as_micros());
+    println!(
+        "PNG save disk:  {} iterations, {}us/frame ({}us total)",
+        n,
+        per_frame,
+        elapsed.as_micros()
+    );
 }

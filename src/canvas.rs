@@ -9,10 +9,18 @@ use crate::font::render_text;
 #[cfg(feature = "swash")]
 use crate::font::render_text as render_text_swash;
 
-#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+#[cfg(all(
+    feature = "ab_glyph",
+    not(feature = "swash"),
+    not(feature = "freetype")
+))]
 use ab_glyph::{Font, FontArc, PxScale};
 
-#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+#[cfg(all(
+    feature = "ab_glyph",
+    not(feature = "swash"),
+    not(feature = "freetype")
+))]
 use imageproc::drawing::draw_text_mut;
 
 /// Canvas for drawing shapes and text
@@ -82,7 +90,11 @@ impl Canvas {
     }
 
     /// Draw text using ab_glyph fonts with per-character fallback
-    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    #[cfg(all(
+        feature = "ab_glyph",
+        not(feature = "swash"),
+        not(feature = "freetype")
+    ))]
     pub fn draw_text_with_font(
         &mut self,
         text: &str,
@@ -107,8 +119,20 @@ impl Canvas {
             } else {
                 (fallback, true)
             };
-            draw_text_mut(&mut self.text_layer, rgba, pen_x, y, scale, f, &ch.to_string());
-            pen_x += if is_wide { char_width_px * 2 } else { char_width_px };
+            draw_text_mut(
+                &mut self.text_layer,
+                rgba,
+                pen_x,
+                y,
+                scale,
+                f,
+                &ch.to_string(),
+            );
+            pen_x += if is_wide {
+                char_width_px * 2
+            } else {
+                char_width_px
+            };
         }
     }
 
@@ -164,9 +188,15 @@ impl Canvas {
                             let src_w = alpha * 255;
                             let dst_w = dst_a * (255 - alpha);
                             let total = src_w + dst_w;
-                            pixel[0] = ((color[0] as u32 * src_w + pixel[0] as u32 * dst_w + total / 2) / total) as u8;
-                            pixel[1] = ((color[1] as u32 * src_w + pixel[1] as u32 * dst_w + total / 2) / total) as u8;
-                            pixel[2] = ((color[2] as u32 * src_w + pixel[2] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[0] =
+                                ((color[0] as u32 * src_w + pixel[0] as u32 * dst_w + total / 2)
+                                    / total) as u8;
+                            pixel[1] =
+                                ((color[1] as u32 * src_w + pixel[1] as u32 * dst_w + total / 2)
+                                    / total) as u8;
+                            pixel[2] =
+                                ((color[2] as u32 * src_w + pixel[2] as u32 * dst_w + total / 2)
+                                    / total) as u8;
                             pixel[3] = out_a as u8;
                         }
                     }
@@ -177,14 +207,7 @@ impl Canvas {
 
     /// Draw text using swash for rendering
     #[cfg(feature = "swash")]
-    pub fn draw_text_swash(
-        &mut self,
-        text: &str,
-        x: i32,
-        y: i32,
-        color: [u8; 4],
-        font_size: f32,
-    ) {
+    pub fn draw_text_swash(&mut self, text: &str, x: i32, y: i32, color: [u8; 4], font_size: f32) {
         let glyphs = render_text_swash(text, font_size);
         let canvas_w = self.text_layer.width() as i32;
         let canvas_h = self.text_layer.height() as i32;
@@ -230,9 +253,15 @@ impl Canvas {
                             let src_w = alpha * 255;
                             let dst_w = dst_a * (255 - alpha);
                             let total = src_w + dst_w;
-                            pixel[0] = ((color[0] as u32 * src_w + pixel[0] as u32 * dst_w + total / 2) / total) as u8;
-                            pixel[1] = ((color[1] as u32 * src_w + pixel[1] as u32 * dst_w + total / 2) / total) as u8;
-                            pixel[2] = ((color[2] as u32 * src_w + pixel[2] as u32 * dst_w + total / 2) / total) as u8;
+                            pixel[0] =
+                                ((color[0] as u32 * src_w + pixel[0] as u32 * dst_w + total / 2)
+                                    / total) as u8;
+                            pixel[1] =
+                                ((color[1] as u32 * src_w + pixel[1] as u32 * dst_w + total / 2)
+                                    / total) as u8;
+                            pixel[2] =
+                                ((color[2] as u32 * src_w + pixel[2] as u32 * dst_w + total / 2)
+                                    / total) as u8;
                             pixel[3] = out_a as u8;
                         }
                     }

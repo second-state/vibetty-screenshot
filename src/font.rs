@@ -7,7 +7,11 @@
 #[path = "font_freetype.rs"]
 mod font_impl;
 
-#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+#[cfg(all(
+    feature = "ab_glyph",
+    not(feature = "swash"),
+    not(feature = "freetype")
+))]
 #[path = "font_abglyph.rs"]
 mod font_impl;
 

@@ -5,8 +5,8 @@
 //! Per-character fallback: a char is rendered with the primary font when it
 //! has the glyph, otherwise with the fallback font.
 
-use freetype::face::LoadFlag;
 use freetype::Library;
+use freetype::face::LoadFlag;
 use std::cell::RefCell;
 use std::sync::LazyLock;
 

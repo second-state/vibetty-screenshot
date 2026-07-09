@@ -25,7 +25,11 @@ fn main() {
     );
 
     // (2) diff against original to confirm content is intact (within quant error)
-    let orig = ImageReader::open(&orig_path).unwrap().decode().unwrap().to_rgb8();
+    let orig = ImageReader::open(&orig_path)
+        .unwrap()
+        .decode()
+        .unwrap()
+        .to_rgb8();
     let pal_rgb = pal.to_rgb8();
     assert_eq!(orig.dimensions(), pal_rgb.dimensions());
 
@@ -45,11 +49,23 @@ fn main() {
         sum_sq += (d0 * d0 + d1 * d1 + d2 * d2) as u64;
     }
     let mse = sum_sq as f64 / (total * 3) as f64;
-    let psnr = if mse > 0.0 { 10.0 * (255.0 * 255.0 / mse).log10() } else { f64::INFINITY };
+    let psnr = if mse > 0.0 {
+        10.0 * (255.0 * 255.0 / mse).log10()
+    } else {
+        f64::INFINITY
+    };
 
     println!();
     println!("与原图比对:");
-    println!("  有差异的像素 : {}/{} ({:.2}%)", diff_pixels, total, 100.0 * diff_pixels as f64 / total as f64);
+    println!(
+        "  有差异的像素 : {}/{} ({:.2}%)",
+        diff_pixels,
+        total,
+        100.0 * diff_pixels as f64 / total as f64
+    );
     println!("  单通道最大色差: {}", max_diff);
-    println!("  PSNR         : {:.2} dB  (>40dB≈视觉无损, >50dB≈几乎不可察觉)", psnr);
+    println!(
+        "  PSNR         : {:.2} dB  (>40dB≈视觉无损, >50dB≈几乎不可察觉)",
+        psnr
+    );
 }

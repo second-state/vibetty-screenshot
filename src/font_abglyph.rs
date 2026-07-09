@@ -13,14 +13,12 @@ static FONT_DATA_PRIMARY: &[u8] = include_bytes!("../assets/JetBrainsMono-Regula
 static FONT_DATA_FALLBACK: &[u8] = include_bytes!("../assets/SarasaMonoSC-Light.ttf");
 
 /// Global cached primary font, parsed only once
-static FONT_PRIMARY: LazyLock<FontArc> = LazyLock::new(|| {
-    FontArc::try_from_slice(FONT_DATA_PRIMARY).expect("Primary font is valid")
-});
+static FONT_PRIMARY: LazyLock<FontArc> =
+    LazyLock::new(|| FontArc::try_from_slice(FONT_DATA_PRIMARY).expect("Primary font is valid"));
 
 /// Global cached fallback font, parsed only once
-static FONT_FALLBACK: LazyLock<FontArc> = LazyLock::new(|| {
-    FontArc::try_from_slice(FONT_DATA_FALLBACK).expect("Fallback font is valid")
-});
+static FONT_FALLBACK: LazyLock<FontArc> =
+    LazyLock::new(|| FontArc::try_from_slice(FONT_DATA_FALLBACK).expect("Fallback font is valid"));
 
 /// Font data container with primary + fallback ab_glyph FontArcs
 pub struct FontData {

@@ -22,7 +22,11 @@ pub use font::render_text;
 #[cfg(feature = "swash")]
 pub use font::render_text;
 
-#[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+#[cfg(all(
+    feature = "ab_glyph",
+    not(feature = "swash"),
+    not(feature = "freetype")
+))]
 pub use ab_glyph::{FontArc, PxScale};
 
 pub use theme::Theme;
@@ -89,18 +93,34 @@ fn draw_text(
     y: i32,
     color: [u8; 4],
     #[allow(unused_variables)] font_size: f32,
-    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    #[cfg(all(
+        feature = "ab_glyph",
+        not(feature = "swash"),
+        not(feature = "freetype")
+    ))]
     font: &ab_glyph::FontArc,
-    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    #[cfg(all(
+        feature = "ab_glyph",
+        not(feature = "swash"),
+        not(feature = "freetype")
+    ))]
     fallback: &ab_glyph::FontArc,
-    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    #[cfg(all(
+        feature = "ab_glyph",
+        not(feature = "swash"),
+        not(feature = "freetype")
+    ))]
     scale: ab_glyph::PxScale,
 ) {
     #[cfg(all(feature = "freetype", not(feature = "swash")))]
     {
         canvas.draw_text_freetype(text, x, y, color, font_size);
     }
-    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+    #[cfg(all(
+        feature = "ab_glyph",
+        not(feature = "swash"),
+        not(feature = "freetype")
+    ))]
     {
         canvas.draw_text_with_font(text, x, y, color, font, fallback, scale);
     }
@@ -115,13 +135,17 @@ pub fn capture_screen(
     screen: &vt100::Screen,
     config: &ScreenshotConfig,
 ) -> Result<image::RgbaImage, ScreenshotError> {
-    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
-    let font_data = load_font_with_size(config.font_size)
-        .unwrap_or_else(|_| FontData::new(config.font_size));
+    #[cfg(all(
+        feature = "ab_glyph",
+        not(feature = "swash"),
+        not(feature = "freetype")
+    ))]
+    let font_data =
+        load_font_with_size(config.font_size).unwrap_or_else(|_| FontData::new(config.font_size));
 
     #[cfg(feature = "swash")]
-    let font_data = load_font_with_size(config.font_size)
-        .unwrap_or_else(|_| FontData::new(config.font_size));
+    let font_data =
+        load_font_with_size(config.font_size).unwrap_or_else(|_| FontData::new(config.font_size));
 
     let theme = &config.theme;
     let (char_width, char_height) = get_char_metrics(config.font_size);
@@ -166,9 +190,20 @@ pub fn capture_screen(
         let title_y = 10;
 
         #[cfg(all(feature = "freetype", not(feature = "swash")))]
-        draw_text(&mut canvas, title, title_x, title_y, [220, 220, 220, 255], config.font_size);
+        draw_text(
+            &mut canvas,
+            title,
+            title_x,
+            title_y,
+            [220, 220, 220, 255],
+            config.font_size,
+        );
 
-        #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
+        #[cfg(all(
+            feature = "ab_glyph",
+            not(feature = "swash"),
+            not(feature = "freetype")
+        ))]
         draw_text(
             &mut canvas,
             title,
@@ -182,7 +217,14 @@ pub fn capture_screen(
         );
 
         #[cfg(feature = "swash")]
-        draw_text(&mut canvas, title, title_x, title_y, [220, 220, 220, 255], config.font_size);
+        draw_text(
+            &mut canvas,
+            title,
+            title_x,
+            title_y,
+            [220, 220, 220, 255],
+            config.font_size,
+        );
     }
 
     // Draw terminal content
@@ -211,37 +253,41 @@ pub fn capture_screen(
 
                     {
                         #[cfg(all(feature = "freetype", not(feature = "swash")))]
-                    draw_text(
-                        &mut canvas,
-                        contents,
-                        x as i32,
-                        y as i32,
-                        fg_color,
-                        config.font_size,
-                    );
+                        draw_text(
+                            &mut canvas,
+                            contents,
+                            x as i32,
+                            y as i32,
+                            fg_color,
+                            config.font_size,
+                        );
 
-                    #[cfg(all(feature = "ab_glyph", not(feature = "swash"), not(feature = "freetype")))]
-                    draw_text(
-                        &mut canvas,
-                        contents,
-                        x as i32,
-                        y as i32,
-                        fg_color,
-                        config.font_size,
-                        &font_data.font,
-                        &font_data.fallback,
-                        font_data.scale,
-                    );
+                        #[cfg(all(
+                            feature = "ab_glyph",
+                            not(feature = "swash"),
+                            not(feature = "freetype")
+                        ))]
+                        draw_text(
+                            &mut canvas,
+                            contents,
+                            x as i32,
+                            y as i32,
+                            fg_color,
+                            config.font_size,
+                            &font_data.font,
+                            &font_data.fallback,
+                            font_data.scale,
+                        );
 
-                    #[cfg(feature = "swash")]
-                    draw_text(
-                        &mut canvas,
-                        contents,
-                        x as i32,
-                        y as i32,
-                        fg_color,
-                        config.font_size,
-                    );
+                        #[cfg(feature = "swash")]
+                        draw_text(
+                            &mut canvas,
+                            contents,
+                            x as i32,
+                            y as i32,
+                            fg_color,
+                            config.font_size,
+                        );
                     }
                 }
             }
