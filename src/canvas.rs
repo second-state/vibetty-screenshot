@@ -1,6 +1,6 @@
 //! Canvas for rendering terminal content to images
 
-use image::{ImageBuffer, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba, RgbaImage, imageops::FilterType};
 use tiny_skia::{Color, Paint, Pixmap, Rect, Transform};
 
 #[cfg(all(feature = "freetype", not(feature = "swash")))]
@@ -69,6 +69,36 @@ impl Canvas {
     pub fn fill(&mut self, color: [u8; 4]) {
         let color = Color::from_rgba8(color[0], color[1], color[2], color[3]);
         self.background.fill(color);
+    }
+
+    /// Paint `image` as the canvas background using a "cover" fit: the image is
+    /// scaled (preserving aspect ratio) to fully cover the canvas, then the
+    /// overflow is center-cropped. Straight-alpha RGBA is written directly into
+    /// the pixmap, which is exact for opaque images.
+    pub fn fill_background_image(&mut self, image: &DynamicImage) {
+        let cw = self.background.width();
+        let ch = self.background.height();
+        let (iw, ih) = image.dimensions();
+        if iw == 0 || ih == 0 {
+            return;
+        }
+
+        let scale = (cw as f32 / iw as f32).max(ch as f32 / ih as f32);
+        let nw = ((iw as f32 * scale).round() as u32).max(1);
+        let nh = ((ih as f32 * scale).round() as u32).max(1);
+
+        let rgba = image.to_rgba8();
+        let resized = image::imageops::resize(&rgba, nw, nh, FilterType::Triangle);
+
+        let off_x = nw.saturating_sub(cw) / 2;
+        let off_y = nh.saturating_sub(ch) / 2;
+        let cropped = image::imageops::crop_imm(&resized, off_x, off_y, cw, ch).to_image();
+
+        let src = cropped.into_raw();
+        let dst = self.background.data_mut();
+        if dst.len() == src.len() {
+            dst.copy_from_slice(&src);
+        }
     }
 
     /// Fill a rectangle with a color

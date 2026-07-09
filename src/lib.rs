@@ -130,10 +130,12 @@ fn draw_text(
     }
 }
 
-/// Capture a vt100::Screen as an image
-pub fn capture_screen(
+/// Shared rendering core. When `background_image` is `Some`, it is painted as
+/// the canvas background (cover fit); otherwise the config's color is used.
+fn render(
     screen: &vt100::Screen,
     config: &ScreenshotConfig,
+    background_image: Option<&image::DynamicImage>,
 ) -> Result<image::RgbaImage, ScreenshotError> {
     #[cfg(all(
         feature = "ab_glyph",
@@ -178,8 +180,11 @@ pub fn capture_screen(
 
     canvas.set_char_size(char_width, char_height);
 
-    // Fill background
-    canvas.fill(config.background_color);
+    // Fill background (solid color, or a caller-supplied image).
+    match background_image {
+        Some(image) => canvas.fill_background_image(image),
+        None => canvas.fill(config.background_color),
+    }
 
     // Draw title bar if decorations are enabled
     if config.show_decorations {
@@ -297,6 +302,27 @@ pub fn capture_screen(
     canvas
         .into_image()
         .map_err(|e| ScreenshotError::CanvasError(e.to_string()))
+}
+
+/// Capture a vt100::Screen as an image.
+pub fn capture_screen(
+    screen: &vt100::Screen,
+    config: &ScreenshotConfig,
+) -> Result<image::RgbaImage, ScreenshotError> {
+    render(screen, config, None)
+}
+
+/// Capture a vt100::Screen as an image, using `image` as the background.
+///
+/// The image is scaled to cover the canvas (aspect ratio preserved, overflow
+/// center-cropped). The caller is responsible for loading/decoding the image —
+/// this function performs no I/O.
+pub fn capture_screen_with_image(
+    screen: &vt100::Screen,
+    config: &ScreenshotConfig,
+    image: &image::DynamicImage,
+) -> Result<image::RgbaImage, ScreenshotError> {
+    render(screen, config, Some(image))
 }
 
 /// Save a vt100::Screen to a PNG file
