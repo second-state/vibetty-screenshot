@@ -19,7 +19,6 @@ let screen = parser.screen().clone();
 let config = ScreenshotConfig {
     font_size: 16.0,
     padding: 24,
-    background_color: [30, 30, 30, 255],
     show_decorations: true,
     title: Some("Terminal".to_string()),
     theme: Theme::default(),
@@ -38,23 +37,22 @@ let image = capture_screen(&screen, &config).unwrap();
 // image is an image::RgbaImage — encode as JPEG, PNG, resize, etc.
 ```
 
-### Custom background image
+### Transparent background
 
-Render the screen over a caller-supplied image instead of a solid color. The
-library does no I/O — decode the image yourself and pass a `&DynamicImage`:
+`capture_screen` renders the terminal on a **transparent** background — only the text, per-cell background colors, and the optional title bar paint opaque pixels. Composite the result onto any backdrop yourself with the `image` crate:
 
 ```rust
-use image::ImageReader;
-use vibetty_screenshot::{capture_screen_with_image, ScreenshotConfig};
+use image::imageops::overlay;
+use vibetty_screenshot::{capture_screen, ScreenshotConfig};
 
-let bg = ImageReader::open("wallpaper.png")?
-    .with_guessed_format()?
-    .decode()?;
+let shot = capture_screen(&screen, &ScreenshotConfig::default())?;
+let mut backdrop = image::open("wallpaper.png")?.to_rgba8();
 
-// background_color in the config is ignored when an image is supplied
-let image = capture_screen_with_image(&screen, &ScreenshotConfig::default(), &bg)?;
-// The image is scaled to cover the canvas (aspect ratio preserved, edges cropped).
+// Place the transparent screenshot on top of the backdrop.
+overlay(&mut backdrop, &shot, 0, 0);
 ```
+
+See `examples/bg_image.rs` for a full cover-fit + overlay example.
 
 ## Fonts
 
@@ -67,25 +65,25 @@ Each character is looked up in the primary font first; if it has no glyph there,
 
 ## Feature Flags
 
-Three font rendering backends are available via Cargo features. `ab_glyph` is the default (pure Rust, no C dependencies):
+Three font rendering backends are available via Cargo features. `swash` is the default (pure Rust, with a built-in glyph cache):
 
 | Feature | Backend | Notes |
 |---------|---------|-------|
-| `ab_glyph` (default) | ab_glyph + imageproc (pure Rust) | No C dependencies |
+| `swash` (default) | swash (pure Rust) | Pure Rust with built-in cache |
+| `ab_glyph` | ab_glyph + imageproc (pure Rust) | No C dependencies |
 | `freetype` | FreeType (statically compiled) | High-quality hinted rendering |
-| `swash` | swash (pure Rust) | Pure Rust with built-in cache |
 
 Only one backend should be enabled at a time; when several are set, priority is `swash` > `freetype` > `ab_glyph`.
 
 ```toml
-# Default: ab_glyph (pure Rust)
-vibetty-screenshot = "0.2"
+# Default: swash (pure Rust)
+vibetty-screenshot = "0.3"
+
+# ab_glyph backend (pure Rust)
+vibetty-screenshot = { version = "0.3", default-features = false, features = ["ab_glyph"] }
 
 # FreeType backend
-vibetty-screenshot = { version = "0.2", default-features = false, features = ["freetype"] }
-
-# swash backend
-vibetty-screenshot = { version = "0.2", default-features = false, features = ["swash"] }
+vibetty-screenshot = { version = "0.3", default-features = false, features = ["freetype"] }
 ```
 
 ## Example
@@ -100,7 +98,6 @@ cargo run --example bg_image -- path/to/image.png
 
 ```rust
 pub fn capture_screen(screen: &vt100::Screen, config: &ScreenshotConfig) -> Result<RgbaImage, ScreenshotError>
-pub fn capture_screen_with_image(screen: &vt100::Screen, config: &ScreenshotConfig, image: &image::DynamicImage) -> Result<RgbaImage, ScreenshotError>
 pub fn save_screen_png(screen: &vt100::Screen, path: &str, config: &ScreenshotConfig) -> Result<(), ScreenshotError>
 ```
 
@@ -109,6 +106,6 @@ pub fn save_screen_png(screen: &vt100::Screen, path: &str, config: &ScreenshotCo
 - `vt100` — terminal screen parser
 - `image` — image encoding/decoding
 - `tiny-skia` — canvas shape rendering
-- `ab_glyph` + `imageproc` — font rendering (optional, default)
+- `swash` — font rendering (optional, default)
+- `ab_glyph` + `imageproc` — font rendering (optional)
 - `freetype-rs` — font rendering (optional)
-- `swash` — font rendering (optional)

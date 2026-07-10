@@ -59,9 +59,6 @@ pub struct ScreenshotConfig {
     /// Padding around the content (in pixels)
     pub padding: u32,
 
-    /// Background color (R, G, B, A)
-    pub background_color: [u8; 4],
-
     /// Whether to show window decorations
     pub show_decorations: bool,
 
@@ -77,7 +74,6 @@ impl Default for ScreenshotConfig {
         Self {
             font_size: 14.0,
             padding: 16,
-            background_color: [30, 30, 30, 255],
             show_decorations: true,
             title: None,
             theme: Theme::default(),
@@ -130,12 +126,11 @@ fn draw_text(
     }
 }
 
-/// Shared rendering core. When `background_image` is `Some`, it is painted as
-/// the canvas background (cover fit); otherwise the config's color is used.
+/// Shared rendering core. The canvas background is left transparent so callers
+/// can composite the returned image onto any backdrop themselves.
 fn render(
     screen: &vt100::Screen,
     config: &ScreenshotConfig,
-    background_image: Option<&image::DynamicImage>,
 ) -> Result<image::RgbaImage, ScreenshotError> {
     #[cfg(all(
         feature = "ab_glyph",
@@ -146,7 +141,7 @@ fn render(
         load_font_with_size(config.font_size).unwrap_or_else(|_| FontData::new(config.font_size));
 
     #[cfg(feature = "swash")]
-    let font_data =
+    let _font_data =
         load_font_with_size(config.font_size).unwrap_or_else(|_| FontData::new(config.font_size));
 
     let theme = &config.theme;
@@ -180,11 +175,9 @@ fn render(
 
     canvas.set_char_size(char_width, char_height);
 
-    // Fill background (solid color, or a caller-supplied image).
-    match background_image {
-        Some(image) => canvas.fill_background_image(image),
-        None => canvas.fill(config.background_color),
-    }
+    // The background is intentionally left transparent. Only per-cell
+    // background colors and the optional title bar paint opaque pixels, so the
+    // returned image can be overlaid onto any backdrop by the caller.
 
     // Draw title bar if decorations are enabled
     if config.show_decorations {
@@ -309,20 +302,7 @@ pub fn capture_screen(
     screen: &vt100::Screen,
     config: &ScreenshotConfig,
 ) -> Result<image::RgbaImage, ScreenshotError> {
-    render(screen, config, None)
-}
-
-/// Capture a vt100::Screen as an image, using `image` as the background.
-///
-/// The image is scaled to cover the canvas (aspect ratio preserved, overflow
-/// center-cropped). The caller is responsible for loading/decoding the image —
-/// this function performs no I/O.
-pub fn capture_screen_with_image(
-    screen: &vt100::Screen,
-    config: &ScreenshotConfig,
-    image: &image::DynamicImage,
-) -> Result<image::RgbaImage, ScreenshotError> {
-    render(screen, config, Some(image))
+    render(screen, config)
 }
 
 /// Save a vt100::Screen to a PNG file

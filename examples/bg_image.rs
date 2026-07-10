@@ -1,10 +1,9 @@
-//! Example: render a terminal screen over a custom background image.
+//! Example: render a terminal screen and composite it onto a custom background.
 //!
-//! Pass an image path as the first argument to use that file as the
-//! background. With no argument, a synthetic gradient is generated instead.
-//!
-//! The library itself does no I/O — this example shows how the caller decodes
-//! an image and hands a `&DynamicImage` to `capture_screen_with_image`.
+//! The library now renders with a transparent background, so compositing onto
+//! an image is just `image::imageops::overlay` on the caller side. Pass an
+//! image path as the first argument to use that file as the backdrop; with no
+//! argument a synthetic gradient is generated instead.
 //!
 //! ```bash
 //! cargo run --example bg_image                          # synthetic gradient
@@ -12,42 +11,41 @@
 //! ```
 use std::io::Write;
 
-use image::{DynamicImage, ImageReader, Rgba, RgbaImage};
-use vibetty_screenshot::{ScreenshotConfig, capture_screen_with_image};
+use image::imageops::{FilterType, crop_imm, overlay, resize};
+use image::{ImageReader, Rgba, RgbaImage};
+use vibetty_screenshot::{ScreenshotConfig, capture_screen};
 
-/// Build a vivid diagonal gradient so the "cover" fit is visible without a file.
-fn gradient_background() -> DynamicImage {
-    let (w, h) = (480, 270);
-    let mut img = RgbaImage::new(w, h);
-    for y in 0..h {
-        for x in 0..w {
-            let r = (x as f32 / w as f32 * 255.0) as u8;
-            let g = (y as f32 / h as f32 * 255.0) as u8;
-            let b = ((1.0 - x as f32 / w as f32) * 255.0) as u8;
+/// Build a vivid diagonal gradient fitting `width` x `height`.
+fn gradient_background(width: u32, height: u32) -> RgbaImage {
+    let mut img = RgbaImage::new(width, height);
+    for y in 0..height {
+        for x in 0..width {
+            let r = (x as f32 / width as f32 * 255.0) as u8;
+            let g = (y as f32 / height as f32 * 255.0) as u8;
+            let b = ((1.0 - x as f32 / width as f32) * 255.0) as u8;
             img.put_pixel(x, y, Rgba([r, g, b, 255]));
         }
     }
-    DynamicImage::ImageRgba8(img)
+    img
+}
+
+/// Scale `src` (preserving aspect ratio) to fully cover `out_w` x `out_h`,
+/// then center-crop the overflow — a "cover" fit.
+fn cover_fit(src: &RgbaImage, out_w: u32, out_h: u32) -> RgbaImage {
+    let (iw, ih) = src.dimensions();
+    if iw == 0 || ih == 0 {
+        return RgbaImage::new(out_w, out_h);
+    }
+    let scale = (out_w as f32 / iw as f32).max(out_h as f32 / ih as f32);
+    let nw = ((iw as f32 * scale).round() as u32).max(1);
+    let nh = ((ih as f32 * scale).round() as u32).max(1);
+    let resized = resize(src, nw, nh, FilterType::Triangle);
+    let off_x = nw.saturating_sub(out_w) / 2;
+    let off_y = nh.saturating_sub(out_h) / 2;
+    crop_imm(&resized, off_x, off_y, out_w, out_h).to_image()
 }
 
 fn main() {
-    // Background: a caller-supplied image path, or a generated gradient by default.
-    let bg = match std::env::args().nth(1) {
-        Some(path) => {
-            println!("loading background: {path}");
-            ImageReader::open(&path)
-                .expect("failed to open background image")
-                .with_guessed_format()
-                .expect("failed to guess image format")
-                .decode()
-                .expect("failed to decode background image")
-        }
-        None => {
-            println!("no image path given — using a synthetic gradient");
-            gradient_background()
-        }
-    };
-
     let mut parser = vt100::Parser::new(6, 44, 0);
     let _ = parser.write(b"\x1b[1;97mCustom Background Image\x1b[0m\r\n");
     let _ = parser.write(b"\x1b[32mHello\x1b[0m rendered over an image\r\n");
@@ -56,10 +54,32 @@ fn main() {
 
     let mut config = ScreenshotConfig::default();
     config.title = Some("bg image".to_string());
-    // background_color is ignored when an image is supplied
 
-    let image = capture_screen_with_image(&screen, &config, &bg).expect("render failed");
+    // Transparent screenshot — nothing but the terminal content (and title bar).
+    let shot = capture_screen(&screen, &config).expect("render failed");
+
+    // Build a backdrop exactly the size of the screenshot.
+    let mut backdrop = match std::env::args().nth(1) {
+        Some(path) => {
+            println!("loading background: {path}");
+            let img = ImageReader::open(&path)
+                .expect("failed to open background image")
+                .with_guessed_format()
+                .expect("failed to guess image format")
+                .decode()
+                .expect("failed to decode background image");
+            cover_fit(&img.to_rgba8(), shot.width(), shot.height())
+        }
+        None => {
+            println!("no image path given — using a synthetic gradient");
+            gradient_background(shot.width(), shot.height())
+        }
+    };
+
+    // Composite the transparent screenshot on top of the backdrop.
+    overlay(&mut backdrop, &shot, 0, 0);
+
     let out = "/tmp/bg_test.png";
-    image.save(out).expect("save failed");
-    println!("saved {out}  ({}x{})", image.width(), image.height());
+    backdrop.save(out).expect("save failed");
+    println!("saved {out}  ({}x{})", backdrop.width(), backdrop.height());
 }

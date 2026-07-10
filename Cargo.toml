@@ -1,11 +1,11 @@
 [package]
 name = "vibetty-screenshot"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2024"
 description = "Render vt100 terminal screens to PNG images"
 
 [features]
-default = ["ab_glyph"]
+default = ["swash"]
 freetype = ["dep:freetype-rs"]
 ab_glyph = ["dep:ab_glyph", "dep:imageproc"]
 swash = ["dep:swash"]

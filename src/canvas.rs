@@ -1,6 +1,6 @@
 //! Canvas for rendering terminal content to images
 
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba, RgbaImage, imageops::FilterType};
+use image::{ImageBuffer, Rgba, RgbaImage};
 use tiny_skia::{Color, Paint, Pixmap, Rect, Transform};
 
 #[cfg(all(feature = "freetype", not(feature = "swash")))]
@@ -63,42 +63,6 @@ impl Canvas {
     #[allow(dead_code)]
     pub fn char_height(&self) -> u32 {
         self.char_height
-    }
-
-    /// Fill the entire canvas with a color
-    pub fn fill(&mut self, color: [u8; 4]) {
-        let color = Color::from_rgba8(color[0], color[1], color[2], color[3]);
-        self.background.fill(color);
-    }
-
-    /// Paint `image` as the canvas background using a "cover" fit: the image is
-    /// scaled (preserving aspect ratio) to fully cover the canvas, then the
-    /// overflow is center-cropped. Straight-alpha RGBA is written directly into
-    /// the pixmap, which is exact for opaque images.
-    pub fn fill_background_image(&mut self, image: &DynamicImage) {
-        let cw = self.background.width();
-        let ch = self.background.height();
-        let (iw, ih) = image.dimensions();
-        if iw == 0 || ih == 0 {
-            return;
-        }
-
-        let scale = (cw as f32 / iw as f32).max(ch as f32 / ih as f32);
-        let nw = ((iw as f32 * scale).round() as u32).max(1);
-        let nh = ((ih as f32 * scale).round() as u32).max(1);
-
-        let rgba = image.to_rgba8();
-        let resized = image::imageops::resize(&rgba, nw, nh, FilterType::Triangle);
-
-        let off_x = nw.saturating_sub(cw) / 2;
-        let off_y = nh.saturating_sub(ch) / 2;
-        let cropped = image::imageops::crop_imm(&resized, off_x, off_y, cw, ch).to_image();
-
-        let src = cropped.into_raw();
-        let dst = self.background.data_mut();
-        if dst.len() == src.len() {
-            dst.copy_from_slice(&src);
-        }
     }
 
     /// Fill a rectangle with a color
@@ -320,20 +284,30 @@ impl Canvas {
         )
         .ok_or_else(|| "Failed to create image from raw data".to_string())?;
 
-        // Composite text layer onto background
+        // Composite the text layer over the background with straight-alpha
+        // "over". The background is transparent by default (only per-cell colors
+        // and the title bar paint opaque pixels), so the text layer's alpha must
+        // be preserved on transparent edges rather than forced opaque —
+        // otherwise antialiased glyphs get a dark fringe when callers overlay
+        // the result onto their own backdrop.
         for (x, y, bg_pixel) in result.enumerate_pixels_mut() {
             let text_pixel = self.text_layer.get_pixel(x, y);
-            let ta = text_pixel[3] as u32;
-            if ta > 0 {
-                let inv_ta = 255 - ta;
-                bg_pixel[0] =
-                    ((text_pixel[0] as u32 * ta + bg_pixel[0] as u32 * inv_ta + 128) >> 8) as u8;
-                bg_pixel[1] =
-                    ((text_pixel[1] as u32 * ta + bg_pixel[1] as u32 * inv_ta + 128) >> 8) as u8;
-                bg_pixel[2] =
-                    ((text_pixel[2] as u32 * ta + bg_pixel[2] as u32 * inv_ta + 128) >> 8) as u8;
-                bg_pixel[3] = 255;
+            let ta = u32::from(text_pixel[3]);
+            if ta == 0 {
+                continue;
             }
+            let ba = u32::from(bg_pixel[3]);
+            let inv_ta = 255 - ta;
+            let out_a = ta + (ba * inv_ta + 127) / 255;
+            if out_a == 0 {
+                continue;
+            }
+            let bg_weight = (ba * inv_ta + 127) / 255;
+            for c in 0..3 {
+                let num = u32::from(text_pixel[c]) * ta + u32::from(bg_pixel[c]) * bg_weight;
+                bg_pixel[c] = ((num + out_a / 2) / out_a) as u8;
+            }
+            bg_pixel[3] = out_a as u8;
         }
 
         Ok(result)

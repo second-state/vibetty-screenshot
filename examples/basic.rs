@@ -34,7 +34,6 @@ fn main() {
     let config = ScreenshotConfig {
         font_size: 16.0,
         padding: 24,
-        background_color: [30, 30, 30, 255],
         show_decorations: true,
         title: Some("vibetty-screenshot example".to_string()),
         theme: Theme::default(),

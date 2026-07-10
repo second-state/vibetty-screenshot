@@ -22,7 +22,7 @@ fn main() {
     let start = std::time::Instant::now();
     for _ in 0..n {
         let img = capture_screen(&screen, &config);
-        std::hint::black_box(img);
+        let _ = std::hint::black_box(img);
     }
     let elapsed = start.elapsed();
     let per_frame = elapsed.as_micros() / n as u128;
